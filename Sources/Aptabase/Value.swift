@@ -16,6 +16,25 @@ enum AnyCodableValue: Encodable {
     case boolean(Bool)
     case null
 
+    init?(from value: Any) {
+        switch value {
+        case let x as Int:
+            self = .integer(x)
+        case let x as Double:
+            self = .double(x)
+        case let x as Float:
+            self = .float(x)
+        case let x as Bool:
+            self = .boolean(x)
+        case let x as String:
+            self = .string(x)
+        case _ as NSNull:
+            self = .null
+        default:
+            return nil
+        }
+    }
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {

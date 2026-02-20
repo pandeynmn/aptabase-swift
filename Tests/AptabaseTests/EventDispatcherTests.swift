@@ -1,13 +1,13 @@
-import XCTest
 @testable import Aptabase
+import XCTest
 
 class MockURLSession: URLSessionProtocol {
     var requestCount: Int = 0
     var statusCode: Int = 200
-    
+
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requestCount += 1
-        
+
         let data = "{}".data(using: .utf8)!
         let response = HTTPURLResponse(url: request.url!, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
         return (data, response)
@@ -17,23 +17,12 @@ class MockURLSession: URLSessionProtocol {
 final class EventDispatcherTests: XCTestCase {
     var dispatcher: EventDispatcher!
     var session: MockURLSession!
-    let env = EnvironmentInfo(
-        isDebug: true,
-        osName: "iOS",
-        osVersion: "17.0",
-        appVersion: "1.0.0",
-        deviceModel: "iPhone16,2"
-    )
+    let config = AptabaseConfig(appKey: "A-DEV-000", host: URL(string: "http://localhost:3000")!)
 
     override func setUp() {
         super.setUp()
         session = MockURLSession()
-        dispatcher = EventDispatcher(
-            appKey: "A-DEV-000",
-            baseUrl: "http://localhost:3000",
-            env: env,
-            session: session
-        )
+        dispatcher = EventDispatcher(config: config, session: session)
     }
 
     override func tearDown() {
@@ -46,53 +35,56 @@ final class EventDispatcherTests: XCTestCase {
         await dispatcher.flush()
         XCTAssertEqual(session.requestCount, 0)
     }
-    
+
     func testFlushSingleItem() async {
-        dispatcher.enqueue(newEvent("app_started"))
-        
+        await dispatcher.enqueue(newEvent("app_started"))
+
         await dispatcher.flush()
         XCTAssertEqual(session.requestCount, 1)
     }
-    
+
     func testFlushShouldBatchMultipleItems() async {
-        dispatcher.enqueue(newEvent("app_started"))
-        dispatcher.enqueue(newEvent("item_created"))
-        dispatcher.enqueue(newEvent("item_deleted"))
-        
+        await dispatcher.enqueue(newEvent("app_started"))
+        await dispatcher.enqueue(newEvent("item_created"))
+        await dispatcher.enqueue(newEvent("item_deleted"))
+
         await dispatcher.flush()
         XCTAssertEqual(session.requestCount, 1)
-        
+
         await dispatcher.flush()
         XCTAssertEqual(session.requestCount, 1)
     }
-    
+
     func testFlushShouldRetryAfterFailure() async {
-        dispatcher.enqueue(newEvent("app_started"))
-        dispatcher.enqueue(newEvent("item_created"))
-        dispatcher.enqueue(newEvent("item_deleted"))
-        
-        
+        await dispatcher.enqueue(newEvent("app_started"))
+        await dispatcher.enqueue(newEvent("item_created"))
+        await dispatcher.enqueue(newEvent("item_deleted"))
+
         session.statusCode = 500
         await dispatcher.flush()
         XCTAssertEqual(session.requestCount, 1)
-        
+
         session.statusCode = 200
         await dispatcher.flush()
         XCTAssertEqual(session.requestCount, 2)
     }
-    
+
     private func newEvent(_ eventName: String) -> Event {
-        return Event(timestamp: Date(),
-                     sessionId: UUID().uuidString,
-                     eventName: eventName,
-                     systemProps: Event.SystemProps(isDebug: env.isDebug,
-                                                    locale: env.locale,
-                                                    osName: env.osName,
-                                                    osVersion: env.osVersion,
-                                                    appVersion: env.appVersion,
-                                                    appBuildNumber: env.appBuildNumber,
-                                                    sdkVersion: "aptabase-swift@0.0.0",
-                                                    deviceModel: env.deviceModel)
+        Event(
+            timestamp: Date(),
+            userID: UUID(),
+            sessionId: UUID().uuidString,
+            eventName: eventName,
+            systemProps: Event.SystemProps(
+                isDebug: config.isDebug,
+                locale: Locale.current.language.languageCode?.identifier ?? "",
+                osName: config.osName,
+                osVersion: config.osVersion,
+                appVersion: config.appVersion,
+                appBuildNumber: config.appBuildNumber,
+                sdkVersion: "aptabase-swift-nomad@v1-test",
+                deviceModel: config.deviceModel,
+            ),
         )
     }
 }

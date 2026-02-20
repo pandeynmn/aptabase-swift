@@ -1,7 +1,8 @@
-import Foundation
+import SwiftUI
 
 struct Event: Encodable {
     var timestamp: Date
+    var userID: UUID
     var sessionId: String
     var eventName: String
     var systemProps: SystemProps
@@ -25,20 +26,20 @@ protocol URLSessionProtocol {
 
 extension URLSession: URLSessionProtocol {}
 
-public class EventDispatcher {
+public actor EventDispatcher {
     private var events = ConcurrentQueue<Event>()
     private let maximumBatchSize = 25
     private let headers: [String: String]
     private let apiUrl: URL
     private let session: URLSessionProtocol
 
-    init(appKey: String, baseUrl: String, env: EnvironmentInfo, session: URLSessionProtocol = URLSession.shared) {
+    init(config: AptabaseConfig, session: URLSessionProtocol = URLSession.shared) {
         self.session = session
-        apiUrl = URL(string: "\(baseUrl)/api/v0/events")!
+        apiUrl = config.host.appendingPathComponent("api/v0/events")
         headers = [
             "Content-Type": "application/json",
-            "App-Key": appKey,
-            "User-Agent": "\(env.osName)/\(env.osVersion) \(env.locale)"
+            "App-Key": config.appKey,
+            "User-Agent": "\(config.osName)/\(config.osVersion) \(Locale.current.language.languageCode?.identifier ?? "")",
         ]
     }
 

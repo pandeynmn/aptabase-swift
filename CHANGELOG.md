@@ -1,3 +1,13 @@
+## 1.0
+Refactored the package to use swift 6 concurrency and rewrote the package internally. 
+
+Session Id is tied to the device that changes daily on CST.
+
+Added files for swiftlint.
+
+Downsides:
+This package relies on SwiftUI V15 and doesn't support mac catalysts.
+
 ## 0.3.11
 
 * Reverts previous change which caused RELEASE data not to show up

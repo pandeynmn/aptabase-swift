@@ -1,5 +1,5 @@
-import XCTest
 @testable import Aptabase
+import XCTest
 
 final class ConcurrentQueueTests: XCTestCase {
     var concurrentQueue: ConcurrentQueue<Int>!
@@ -29,7 +29,7 @@ final class ConcurrentQueueTests: XCTestCase {
         XCTAssertEqual(dequeuedItems, itemsToAdd)
         XCTAssertTrue(concurrentQueue.isEmpty)
     }
-    
+
     func testShouldNotThrow() {
         let itemsToAdd = [1, 2, 3, 4, 5]
         concurrentQueue.enqueue(contentsOf: itemsToAdd)

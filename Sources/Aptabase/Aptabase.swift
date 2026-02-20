@@ -1,158 +1,138 @@
+import CryptoKit
 import Foundation
-
-#if os(iOS) || os(visionOS)
 import UIKit
-#elseif os(macOS)
-import AppKit
-#elseif os(watchOS)
-import WatchKit
-#elseif os(tvOS)
-import TVUIKit
-#endif
 
-/// The Aptabase client used to track events.
-public class Aptabase: NSObject {
-    private var env = EnvironmentInfo.current()
-    private var client: AptabaseClient?
+public actor Aptabase {
+    private static let sdkVersion = "aptabase-swift-nomad@v1"
 
-    /// The shared client instance.
-    @objc public static let shared = Aptabase()
+    private let dispatcher: EventDispatcher
+    private let flushInterval: Double
 
-    /// Initializes the client with given App Key.
-    /// - Parameters:
-    ///   - appKey: The App Key to use.
-    ///   - options: Optional initialization options.
-    public func initialize(appKey: String, with options: InitOptions? = nil) {
-        let parts = appKey.components(separatedBy: "-")
-        if parts.count != 3 || hosts[parts[1]] == nil {
-            debugPrint("The Aptabase App Key \(appKey) is invalid. Tracking will be disabled.")
-            return
-        }
+    private var config: AptabaseConfig
 
-        guard let baseUrl = getBaseUrl(parts[1], options?.host) else {
-            return
-        }
+    private var backgroundFlushTask: Task<Void, Never>?
+    private var flushTask: Task<Void, Never>?
 
-        if let trackingMode = options?.trackingMode, trackingMode != .readFromEnvironment {
-            env.isDebug = trackingMode.isDebug
-        }
+    private var sessionId: String?
 
-        client = AptabaseClient(appKey: appKey, baseUrl: baseUrl, env: env, options: options)
+    public init(config: AptabaseConfig) {
+        flushInterval = config.flushInterval
+        self.config = config
+        dispatcher = EventDispatcher(config: config)
+        sessionId = Self.generateSessionID(from: config.userID)
 
-        let notifications = NotificationCenter.default
-        #if os(tvOS) || os(iOS) || os(visionOS)
-        notifications.addObserver(self, selector: #selector(startPolling), name: UIApplication.willEnterForegroundNotification, object: nil)
-        notifications.addObserver(self, selector: #selector(stopPolling), name: UIApplication.didEnterBackgroundNotification, object: nil)
-        #elseif os(macOS)
-        notifications.addObserver(self, selector: #selector(startPolling), name: NSApplication.didBecomeActiveNotification, object: nil)
-        notifications.addObserver(self, selector: #selector(stopPolling), name: NSApplication.willTerminateNotification, object: nil)
-        #elseif os(watchOS)
-        if #available(watchOS 7.0, *) {
-            notifications.addObserver(self, selector: #selector(startPolling), name: WKExtension.applicationWillEnterForegroundNotification, object: nil)
-            notifications.addObserver(self, selector: #selector(stopPolling), name: WKExtension.applicationDidEnterBackgroundNotification, object: nil)
-        }
-        #endif
-    }
-
-    /// Track an event using given properties.
-    /// - Parameters:
-    ///   - eventName: The name of the event to track.
-    ///   - props: Additional given properties.
-    public func trackEvent(_ eventName: String, with props: [String: Value] = [:]) {
-        guard let codable = toCodableProps(from: props) else {
-            return
-        }
-
-        enqueueEvent(eventName, with: codable)
-    }
-
-    /// Initializes the client with given App Key.
-    /// - Parameter appKey: The App Key to use.
-    @objc public func initialize(appKey: String) {
-        initialize(appKey: appKey, with: nil)
-    }
-
-    /// Initializes the client with given App Key.
-    /// - Parameters:
-    ///   - appKey: The App Key to use.
-    ///   - options: Optional initialization options.
-    @objc public func initialize(appKey: String, options: InitOptions?) {
-        initialize(appKey: appKey, with: options)
-    }
-
-    /// Track an event using given properties.
-    /// - Parameters:
-    ///   - eventName: The name of the event to track.
-    ///   - props: Additional given properties.
-    @objc public func trackEvent(_ eventName: String, with props: [String: Any] = [:]) {
-        guard let codable = toCodableProps(from: props) else {
-            return
-        }
-
-        enqueueEvent(eventName, with: codable)
-    }
-
-    /// Forces all queued events to be sent to the server
-    @objc public func flush() {
-        Task {
-            await self.client?.flush()
+        Task.detached {
+            await self.startBackgroundFlush()
         }
     }
 
-    private func enqueueEvent(_ eventName: String, with props: [String: AnyCodableValue] = [:]) {
-        guard let client else {
-            return
-        }
+    // MARK: Internal
 
-        client.trackEvent(eventName, with: props)
+    /// Daily calculated session ID that changes every day, based on Vendor ID.
+    /// - Parameter userID: Device Vendor ID retreived from UIDevice
+    /// - Returns: Hased session ID based on Vendor ID and Current day in the era.
+    static func generateSessionID(from userID: UUID) -> String {
+        let dayNumber = Self.chicagoCalendar.ordinality(of: .day, in: .era, for: Date())!
+        let input = "\(userID.uuidString)-\(dayNumber)"
+        let hex = SHA256
+            .hash(data: Data(input.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+
+        return String(hex.prefix(36))
     }
 
-    @objc private func startPolling() {
-        client?.startPolling()
-    }
+    /// Automatic background flush task that runs in a loop over the defined time interval.
+    /// - Parameter interval: Time Interval in seconds.
+    func startBackgroundFlush() {
+        // Checking for an existing background flush task in case of an edge cases.
+        // This should be nil on initialization and realistically never trigger.
+        guard backgroundFlushTask == nil else { return }
 
-    @objc private func stopPolling() {
-        client?.stopPolling()
-    }
+        backgroundFlushTask = Task(name: "automatic_background_flush", priority: .background) { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(until: .now + .seconds(config.flushInterval), tolerance: .seconds(1), clock: .continuous)
 
-    private var hosts = [
-        "US": "https://us.aptabase.com",
-        "EU": "https://eu.aptabase.com",
-        "DEV": "http://localhost:3000",
-        "SH": ""
-    ]
-
-    private func getBaseUrl(_ region: String, _ host: String?) -> String? {
-        guard var baseURL = hosts[region] else { return nil }
-        if region == "SH" {
-            guard let host else {
-                debugPrint("Aptabase: Host parameter must be defined when using Self-Hosted App Key. Tracking will be disabled.")
-                return nil
+                } catch {
+                    // No need to do anything else if an error arises since this is just a sleep function.
+                    // logging it just in case there's a bug with the code instead of this silently failing.
+                    debugPrint("Time Interval failed. \(error.localizedDescription)")
+                }
+                await flush()
+                await Task.yield()
             }
-            baseURL = host
         }
-
-        return baseURL
     }
 
-    private func toCodableProps(from props: [String: Any]) -> [String: AnyCodableValue]? {
-        var codableProps: [String: AnyCodableValue] = [:]
-        for (key, value) in props {
-            if let intValue = value as? Int {
-                codableProps[key] = .integer(intValue)
-            } else if let doubleValue = value as? Double {
-                codableProps[key] = .double(doubleValue)
-            } else if let stringValue = value as? String {
-                codableProps[key] = .string(stringValue)
-            } else if let floatValue = value as? Float {
-                codableProps[key] = .float(floatValue)
-            } else if let boolValue = value as? Bool {
-                codableProps[key] = .boolean(boolValue)
+    // MARK: Track Events
+
+    /// Tracks an event with a name and no prop body.
+    /// - Parameter eventName: Name of the Event to be tracked.
+    public func trackEvent(_ eventName: String) async {
+        await trackEvent(eventName, codableProps: [:])
+    }
+
+    /// Tracks an event with a name and props.
+    /// - Parameters:
+    ///   - eventName: Name of the event to be displayed in aptabase.
+    ///   - props: String and Numeric props associated with the event to be tracked.
+    public func trackEvent(_ eventName: String, with props: [String: Any] = [:]) async {
+        let codableProps = props.compactMapValues { value in
+            if let codableValue = AnyCodableValue(from: value) {
+                return codableValue
             } else {
-                debugPrint("Aptabase: Props with key \(key) has an unsupported value type. Supported types are: String, Int, Double, Float and Boolean. Event will be discarded")
+                debugPrint("Aptabase: Unsupported prop value \(value) will be ignored")
                 return nil
             }
         }
-        return codableProps
+        await trackEvent(eventName, codableProps: codableProps)
     }
+
+    func trackEvent(_ eventName: String, codableProps: [String: AnyCodableValue] = [:]) async {
+        guard let sessionId else {
+            debugPrint("UserId or SessionId in trackEvent was found to be nil or has yet to be calculated. This event will be dropped.")
+            return
+        }
+        let newEvent = Event(
+            timestamp: Date(),
+            userID: config.userID,
+            sessionId: sessionId,
+            eventName: eventName,
+            systemProps: Event.SystemProps(
+                isDebug: config.isDebug,
+                locale: Locale.current.language.languageCode?.identifier ?? "",
+                osName: config.osName,
+                osVersion: config.osVersion,
+                appVersion: config.appVersion,
+                appBuildNumber: config.appBuildNumber,
+                sdkVersion: Aptabase.sdkVersion,
+                deviceModel: config.deviceModel,
+            ),
+            props: codableProps,
+        )
+        await dispatcher.enqueue(newEvent)
+    }
+
+    /// Flushes events when called, and returns if a flush event is already underway.
+    /// Useful if you need to override the time interval cycle of flushing events and send them
+    /// out immediately.
+    public func flush() {
+        guard flushTask == nil else { return }
+        flushTask = Task(priority: .background) {
+            await dispatcher.flush()
+            self.flushTask = nil
+        }
+    }
+}
+
+extension Aptabase {
+    /// Date is tracked in the CST instead of the UTC
+    /// because the package author prefers it.
+    private static let chicagoCalendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Chicago")!
+        return calendar
+    }()
 }
