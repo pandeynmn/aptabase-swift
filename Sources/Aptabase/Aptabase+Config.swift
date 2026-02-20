@@ -40,7 +40,6 @@ public struct AptabaseConfig {
         #if DEBUG
             flushInterval = 2.0
         #else
-            trackingMode = .asRelease
             flushInterval = 60.0
         #endif
         self.host = host
