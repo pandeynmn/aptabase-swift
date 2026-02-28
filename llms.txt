@@ -1,0 +1,130 @@
+# AptabaseNomad
+
+> Updated SwiftUI & Swift 6 concurrency-safe analytics SDK. Instrument your apps with Aptabase — Open Source, Privacy-First and Simple Analytics for Mobile, Desktop and Web Apps.
+
+AptabaseNomad is an unofficial fork of the Aptabase Swift SDK maintained by pandeynmn, with Swift 6 actor-based concurrency safety and extended platform support.
+Not affiliated with Aptabase.
+
+## Repository
+- GitHub: https://github.com/pandeynmn/aptabase-swift
+- License: MIT
+- Language: Swift 100%
+- Swift Tools Version: 5.7
+
+## Platform Support
+- iOS 16+
+- macOS 13+
+- watchOS 9+
+- tvOS 16+
+
+## Installation
+
+### Option 1: Swift Package Manager (Package.swift)
+```swift
+let package = Package(
+    ...
+    dependencies: [
+        .package(url: "https://github.com/pandeynmn/aptabase-swift.git", from: "1.0.0"),
+    ],
+    targets: [
+        .target(
+            name: "MyApp",
+            dependencies: ["AptabaseNomad"]
+        )
+    ]
+)
+```
+
+### Option 2: Xcode
+File → Add Package Dependencies → https://github.com/pandeynmn/aptabase-swift.git
+Reference: https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app
+
+## Usage
+
+> macOS only: Enable `Outgoing Connections (Client)` under App Sandbox entitlements before using.
+
+Get your `App Key` from the Aptabase dashboard under the `Instructions` menu.
+
+Initialize as early as possible in your app (see AptabaseTestApp for recommended initialization pattern):
+
+```swift
+import AptabaseNomad
+
+// Initialize with config
+let analytics = AptabaseNomad(config: AptabaseConfig(
+    appKey: "YOUR_APP_KEY",
+    userID: deviceUUID  // UIDevice.current.identifierForVendor on iOS/tvOS
+))
+
+// Track event with no props
+await analytics.trackEvent("app_started")
+
+// Track event with props
+await analytics.trackEvent("button_tapped", with: [
+    "name": "subscribe",
+    "count": 3
+])
+
+// Manually flush events immediately
+await analytics.flush()
+```
+
+## Core API
+
+### AptabaseNomad (public actor)
+Swift `actor` for concurrency safety.
+
+| Method | Description |
+|--------|-------------|
+| `init(config:)` | Initialize SDK with config |
+| `trackEvent(_ eventName:)` | Track event with no props |
+| `trackEvent(_ eventName:, with props:)` | Track event with String/Number props |
+| `flush()` | Immediately dispatch batched events |
+
+### AptabaseConfig
+| Property | Description |
+|----------|-------------|
+| `appKey` | Your Aptabase app key |
+| `userID` | Device UUID (vendor ID or generated UUID) |
+| `flushInterval` | Auto-flush interval in seconds |
+| `isDebug` | Marks events as debug |
+| `osName`, `osVersion` | Auto-populated |
+| `appVersion`, `appBuildNumber` | Auto-populated |
+| `deviceModel` | Auto-populated |
+
+## Key Behaviors
+1. Events are NOT tracked automatically — you must call `trackEvent` manually
+2. It's recommended to track at least one event at app startup
+3. `trackEvent` is non-blocking and runs in the background
+4. Only `String` and `Number` prop values are supported; unsupported values are silently dropped
+5. Calling `flush()` while a flush is already in progress is a no-op
+
+## Session ID Logic
+Sessions use a SHA256 hash of `userID + day-of-era` in the America/Chicago timezone. Sessions rotate daily per device without storing persistent state.
+
+## Auto-collected Event Metadata
+Every event is automatically enriched with:
+- OS name and version
+- App version and build number
+- Device model
+- Locale (language code)
+- SDK version (`aptabase-swift-nomad@v1`)
+- Debug flag
+- Daily session ID and User ID
+
+## Project Structure
+```
+Sources/AptabaseNomad/        # Core SDK source files
+  AptabaseNomad.swift         # Main public actor
+  AptabaseNomad+Config.swift  # AptabaseConfig definition
+  EventDispatcher.swift       # Batching and HTTP dispatch
+  ConcurrentQueue.swift       # Thread-safe event queue
+  TrackingMode.swift          # Debug/release mode
+  Value.swift                 # AnyCodableValue type
+AptabaseTestApp/              # Example app — see for recommended init pattern
+Tests/AptabaseTests/          # Unit tests
+```
+
+## Apple App Store Submission
+Fill out the App Privacy form when submitting. Full guide:
+https://aptabase.com/docs/apple-app-privacy

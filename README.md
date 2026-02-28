@@ -41,6 +41,16 @@ First, you need to get your `App Key` from Aptabase, you can find it in the `Ins
 Initialized the SDK as early as possible in your app. Check the AptabaseTestApp for the recommended initialization.
 
 Afterward, you can start tracking events with `trackEvent`:
+```swift
+await self.aptabase.trackEvent("event_name")
+
+// With props
+await self.aptabase.trackEvent("event_name", with: ["key": "value"])
+
+Task(priority: .background) {
+    await self.aptabase.trackEvent("event_name", with: ["key": "value"])
+}
+```
 
 
 A few important notes:
@@ -48,7 +58,7 @@ A few important notes:
 1. The SDK will automatically enhance the event with some useful information, like the OS, the app version, and other things.
 2. You're in control of what gets sent to Aptabase. This SDK does not automatically track any events, you need to call `trackEvent` manually.
    - Because of this, it's generally recommended to at least track an event at startup
-3. The `trackEvent` function is a non-blocking operation as it runs in the background.
+3. `trackEvent` is an `async` function — call it with `await` to control the task priority and concurrency context it runs in.
 4. Only strings and numbers values are allowed on custom properties
 
 ## Preparing for Submission to Apple App Store
