@@ -81,7 +81,7 @@ public struct AptabaseConfig {
     /// be aptabase.
     /// - Parameters:
     ///   - appKey: Aptabase provided App Key found in the webpage instructions.
-    ///   - customHost: Custom host server to send events.
+    ///   - host: Custom host server to send events.
     public init(appKey: String, host: URL) {
         self.appKey = appKey
         #if DEBUG
