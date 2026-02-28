@@ -5,7 +5,7 @@
 // Created by pandeynmn on 2/20/26.
 //
 
-import Aptabase
+import AptabaseNomad
 import SwiftUI
 
 @MainActor
@@ -14,7 +14,7 @@ final class Metrics {
     private static let key: String = "A-DEV-000"
     private static let host = URL(string: "http://localhost:3000")!
 
-    private let aptabase: Aptabase
+    private let aptabase: AptabaseNomad
     private var flushTask: Task<Void, Never>?
 
     init() {
@@ -24,7 +24,7 @@ final class Metrics {
          let config = AptabaseConfig(appKey: Self.key, host: Self.host, flushTimeInterval: 2.0)
          */
         let config = AptabaseConfig(appKey: Self.key, host: Self.host)
-        aptabase = Aptabase(config: config)
+        aptabase = AptabaseNomad(config: config)
     }
 
     func track(_ event: String, _ options: [String: Value] = [:]) {
@@ -32,7 +32,7 @@ final class Metrics {
             await self.aptabase.trackEvent(event, with: options)
         }
         #if DEBUG
-            print(event + " " + options.debugDescription)
+            debugPrint(event + " " + options.debugDescription)
         #endif
     }
 }

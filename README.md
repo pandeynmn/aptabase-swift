@@ -2,10 +2,7 @@
 
 # Swift SDK for Aptabase
 
-[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Faptabase%2Faptabase-swift%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/aptabase/aptabase-swift)
-[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Faptabase%2Faptabase-swift%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/aptabase/aptabase-swift)
-
-
+Updated SwiftUI & Swift 6 concurrency safe Aptabase SDK.
 Instrument your apps with Aptabase, an Open Source, Privacy-First and Simple Analytics for Mobile, Desktop and Web Apps.
 
 ## Install
@@ -19,12 +16,12 @@ let package = Package(
     ...
     dependencies: [
         ...
-        .package(name: "Aptabase", url: "https://github.com/aptabase/aptabase-swift.git", from: "0.3.4"),
+        .package(name: "AptabaseNomad", url: "https://github.com/pandeynmn/AptabaseNomad.git", from: "1.0.0"),
     ],
     targets: [
         .target(
             name: "MyApp",
-            dependencies: ["Aptabase"] // Add as a dependency
+            dependencies: ["AptabaseNomad"] // Add as a dependency
         )
     ]
 )
@@ -32,15 +29,7 @@ let package = Package(
 
 #### Option 2: Adding package dependencies with Xcode
 
-Use this [guide](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app) to add `aptabase-swift` to your project. Use https://github.com/aptabase/aptabase-swift for the URL when Xcode asks.
-
-#### Option 3: CocoaPods
-
-Aptabase is also available through CocoaPods. To install it, simply add the following line to your Podfile:
-
-```ruby
-pod 'Aptabase', :git => 'https://github.com/aptabase/aptabase-swift.git', :tag => '0.3.4'
-```
+Use this [guide](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app) to add `AptabaseNomad` to your project. Use https://github.com/pandeynmn/AptabaseNomad.git for the URL when Xcode asks.
 
 
 ## Usage
@@ -49,34 +38,10 @@ pod 'Aptabase', :git => 'https://github.com/aptabase/aptabase-swift.git', :tag =
 
 First, you need to get your `App Key` from Aptabase, you can find it in the `Instructions` menu on the left side menu.
 
-Initialized the SDK as early as possible in your app, for example:
-
-```swift
-import SwiftUI
-import Aptabase
-
-@main
-struct ExampleApp: App {
-    init() {
-        Aptabase.shared.initialize(appKey: "<YOUR_APP_KEY>") // 👈 this is where you enter your App Key
-    }
-    
-    var body: some Scene {
-        WindowGroup {
-            MainView()
-        }
-    }
-}
-```
+Initialized the SDK as early as possible in your app. Check the AptabaseTestApp for the recommended initialization.
 
 Afterward, you can start tracking events with `trackEvent`:
 
-```swift
-import Aptabase
-
-Aptabase.shared.trackEvent("app_started") // An event with no properties
-Aptabase.shared.trackEvent("screen_view", with: ["name": "Settings"]) // An event with a custom property
-```
 
 A few important notes:
 

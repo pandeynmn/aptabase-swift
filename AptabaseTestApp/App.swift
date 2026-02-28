@@ -1,17 +1,14 @@
-import Aptabase
+import AptabaseNomad
 import SwiftUI
 
 @main
-struct HelloWorldApp: App {
+struct AptabaseTestApp: App {
     var body: some Scene {
         WindowGroup {
             CounterView()
         }
     }
 }
-
-import Aptabase
-import SwiftUI
 
 struct CounterView: View {
     @State var count: Int = 0

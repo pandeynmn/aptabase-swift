@@ -1,8 +1,16 @@
+//
+//  AptabaseNomad.swift
+//  Aptabase
+//
+// Created by pandeynmn on 2/15/26.
+// Forked from aptabase-swift
+//
+
 import CryptoKit
 import Foundation
-import UIKit
+import SwiftUI
 
-public actor Aptabase {
+public actor AptabaseNomad {
     private static let sdkVersion = "aptabase-swift-nomad@v1"
 
     private let dispatcher: EventDispatcher
@@ -107,7 +115,7 @@ public actor Aptabase {
                 osVersion: config.osVersion,
                 appVersion: config.appVersion,
                 appBuildNumber: config.appBuildNumber,
-                sdkVersion: Aptabase.sdkVersion,
+                sdkVersion: Self.sdkVersion,
                 deviceModel: config.deviceModel,
             ),
             props: codableProps,
@@ -127,7 +135,7 @@ public actor Aptabase {
     }
 }
 
-extension Aptabase {
+extension AptabaseNomad {
     /// Date is tracked in the CST instead of the UTC
     /// because the package author prefers it.
     private static let chicagoCalendar: Calendar = {

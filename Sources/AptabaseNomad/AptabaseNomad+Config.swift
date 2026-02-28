@@ -1,10 +1,18 @@
 //
-//  Aptabase+Config.swift
+//  AptabaseNomad+Config.swift
 //  Aptabase
 //
 // Created by pandeynmn on 2/15/26.
+// Forked from aptabase-swift
+//
 
 import SwiftUI
+#if canImport(UIKit)
+    import UIKit
+#endif
+#if canImport(IOKit)
+    import IOKit
+#endif
 
 enum AptabaseInitError: Error {
     case unsupportedSelfHosted
@@ -14,7 +22,46 @@ enum AptabaseInitError: Error {
 public struct AptabaseConfig {
     /// Analytics Key provided by aptabase.
     var appKey: String
-    var userID: UUID = UIDevice.current.identifierForVendor ?? UUID()
+
+    var userID: UUID {
+        #if os(iOS) || os(tvOS)
+            return UIDevice.current.identifierForVendor ?? UUID()
+        #elseif os(macOS)
+            return getHardwareUUID()
+        #else
+            return getOrCreateDeviceId()
+        #endif
+    }
+
+    #if os(macOS)
+        func getHardwareUUID() -> UUID {
+            let platformExpert = IOServiceGetMatchingService(
+                kIOMainPortDefault,
+                IOServiceMatching("IOPlatformExpertDevice"),
+            )
+            let uuid = IORegistryEntryCreateCFProperty(
+                platformExpert,
+                "IOPlatformUUID" as CFString,
+                kCFAllocatorDefault, 0,
+            ).takeRetainedValue() as? String
+            IOObjectRelease(platformExpert)
+            return UUID(uuidString: uuid ?? "") ?? UUID()
+        }
+    #endif
+
+    #if os(watchOS) || os(visionOS)
+        private func getOrCreateDeviceId() -> UUID {
+            let key = "AptabaseNomad.deviceId"
+            if let stored = UserDefaults.standard.string(forKey: key),
+               let uuid = UUID(uuidString: stored)
+            {
+                return uuid
+            }
+            let newId = UUID()
+            UserDefaults.standard.set(newId.uuidString, forKey: key)
+            return newId
+        }
+    #endif
 
     /// The domain URL of the Aptabase analytics server used for sending events.
     ///

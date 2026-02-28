@@ -1,4 +1,4 @@
-@testable import Aptabase
+@testable import AptabaseNomad
 import XCTest
 
 final class ConcurrentQueueTests: XCTestCase {
