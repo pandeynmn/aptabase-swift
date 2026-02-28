@@ -16,7 +16,7 @@ let package = Package(
     ...
     dependencies: [
         ...
-        .package(name: "AptabaseNomad", url: "https://github.com/pandeynmn/AptabaseNomad.git", from: "1.0.0"),
+        .package(url: "https://github.com/pandeynmn/aptabase-swift.git", from: "1.0.0"),
     ],
     targets: [
         .target(
@@ -29,7 +29,7 @@ let package = Package(
 
 #### Option 2: Adding package dependencies with Xcode
 
-Use this [guide](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app) to add `AptabaseNomad` to your project. Use https://github.com/pandeynmn/AptabaseNomad.git for the URL when Xcode asks.
+Use this [guide](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app) to add `AptabaseNomad` to your project. Use https://github.com/pandeynmn/aptabase-swift.git for the URL when Xcode asks.
 
 
 ## Usage
