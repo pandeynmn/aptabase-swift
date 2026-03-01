@@ -1,0 +1,6 @@
+swift package --allow-writing-to-directory ./docs \
+    generate-documentation --target AptabaseNomad \
+    --disable-indexing \
+    --transform-for-static-hosting \
+    --hosting-base-path aptabase-swift \
+    --output-path ./docs
