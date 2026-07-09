@@ -1,7 +1,7 @@
 import Foundation
 
 /// Protocol for supported property values.
-public protocol Value {}
+public protocol Value: Sendable {}
 extension Int: Value {}
 extension Double: Value {}
 extension String: Value {}
